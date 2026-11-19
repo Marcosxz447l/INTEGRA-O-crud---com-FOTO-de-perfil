@@ -2,14 +2,13 @@
 <html lang="pt-br" dir="ltr">
   <head>
     <meta charset="utf-8">
-    <title>iNTEGRAÇÃO crud - com FOTO de perfil</title>
+    <title>INTEGRAÇÃO crud - com FOTO de perfil</title>
   </head>
-  <style>
-
-  </style>
+  <link rel="stylesheet" href="style.css">
+  <style></style>
   <body>
      <div class="container">
-       <h1>Gerenciamento de usuarios</h1>
+       <h1>Gerenciamento de usuários</h1>
        <form class="userForm" enctype="multipart/form-data">
          <input type="hidden" id="userId" name="id">
 
@@ -24,10 +23,202 @@
          <div class="form-group">
            <label for="foto">Foto de perfil</label>
            <input type="file" id="foto" name="foto" accept="image/*">
-
          </div>
-
+         <div class="actions">
+           <button type="submit" id="btnSubmit" class="btn-submit">Salvar usuarios</button>
+           <button type="button" id="btnCancel" class="btn-cancel" onclick="resetForm">Cancelar</button>
+         </div>
        </form>
+       <h2>Usuários cadastrados</h2>
+       <table>
+         <thead>
+           <tr>
+             <th>Foto</th>
+             <th>Nome</th>
+             <th>E-mail</th>
+             <th>Ações</th>
+           </tr>
+         </thead>
+         <tbody id="userTableBody">
+         </tbody>
+       </table>
      </div>
+     <script>
+     // Define o endereço do arquivo PHP responsável pela API.
+const API_URL = 'api.php';
+
+// Aguarda o carregamento completo do HTML para executar a função fetchUsers.
+document.addEventListener('DOMContentLoaded', fetchUsers);
+
+
+// Cria uma função assíncrona para buscar os usuários na API.
+async function fetchUsers() {
+
+   try {
+
+       // Faz uma requisição à API para buscar os dados dos usuários.
+       const res = await fetch(API_URL);
+
+       // Converte a resposta da API para o formato JSON.
+       const users = await res.json();
+
+       // Busca no HTML o elemento tbody onde os usuários serão exibidos.
+       const tbody = document.getElementById('userTableBody');
+
+       // Limpa o conteúdo da tabela antes de adicionar os novos dados.
+       tbody.innerHTML = '';
+
+       // Verifica se não existem usuários cadastrados.
+       if (users.length === 0) {
+
+           // Exibe uma mensagem informando que nenhum usuário foi encontrado.
+           tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum usuário encontrado</td></tr>';
+
+           // Encerra a função caso não existam usuários.
+           return;
+       }
+
+       // Percorre a lista de usuários recebida pela API.
+       users.forEach(u => {
+
+           // Verifica se o usuário possui foto.
+           // Caso não tenha, utiliza uma imagem padrão.
+           const fotoSrc = u.foto ? u.foto : 'https://via.placeholder.com/50?text=Sem+Foto';
+
+           // Adiciona uma nova linha na tabela com os dados do usuário.
+           tbody.innerHTML += `
+               <tr>
+
+                   // Exibe a foto do usuário na tabela.
+                   <td style="text-align:center;">
+                       <img src="${fotoSrc}" class="avatar" alt="Foto">
+                   </td>
+
+                   //*Exibe o nome do usuário, protegendo o conteúdo HTML*//
+                   <td>${escapeHTML(u.nome)}</td>
+
+                   // Exibe o e-mail do usuário, protegendo o conteúdo HTML.
+                   <td>${escapeHTML(u.email)}</td>
+
+                   <td>
+
+                       // Botão que permite editar os dados do usuário.
+                       <button class="btn-edit"
+                       onclick="setEditMode(${u.id},'${escapeJs(u.nome)}','${escapeJs(u.email)}')">
+                           Editar
+                       </button>
+
+                       // Botão que permite excluir o usuário.
+                       <button class="btn-delete" onclick="deleteUser(${u.id})">
+                           Excluir
+                       </button>
+
+                   </td>
+               </tr>
+           `;
+
+       });
+
+   } catch (error) {
+
+       // Exibe uma mensagem no console caso aconteça algum erro ao carregar os usuários.
+       console.error('Erro ao carregar usuários:', error);
+   }
+}
+document.getElementById('userForm').addEventListener('submit', async (e) => {
+
+  // Impede que o navegador recarregue a página ao enviar o formulário
+  e.preventDefault();
+
+  // Captura automaticamente todos os campos preenchidos (inputs, selects, etc.) do formulário
+  const formData = new FormData(document.getElementById('userForm'));
+
+  try {
+    // Envia os dados de forma assíncrona para a API usando o método POST
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: formData // O FormData define o cabeçalho 'multipart/form-data' automaticamente
+    });
+
+    // Converte a resposta do servidor (JSON) em um objeto JavaScript
+    const data = await res.json();
+
+    // Verifica se o status HTTP da resposta indica sucesso (ex: 200 OK ou 201 Created)
+    if (res.ok) {
+      resetForm();   // Limpa os campos do formulário
+      fetchUsers();  // Atualiza a lista de usuários exibida na tela
+    } else {
+      // Exibe a mensagem de erro retornada pelo backend ou um aviso genérico
+      alert(data.erro || 'Erro ao processar a requisição');
+    }
+
+  } catch (error) {
+    // Captura falhas de rede (ex: servidor fora do ar, sem internet) ou erro ao ler o JSON
+    console.error('Erro na requisição:', error);
+  }
+});
+
+async function deleteUsers(id) {
+  // Exibe uma caixa de diálogo nativa; se o usuário clicar em "Cancelar", interrompe a função
+  if (!confirm('Tem certeza que deseja excluir este usuário?')) return;
+
+  try {
+    // Envia a requisição DELETE passando o ID na URL (ex: https://api.com/users?id=123)
+    const res = await fetch(`${API_URL}?id=${id}`, {
+      method: 'DELETE'
+    });
+
+    // Converte a resposta do servidor (JSON) em um objeto JavaScript
+    const data = await res.json();
+
+    // Se a exclusão foi bem-sucedida (status HTTP 200-299), recarrega a lista na tela
+    if (res.ok) {
+      fetchUsers();
+    } else {
+      // Exibe a mensagem de erro retornada pelo backend ou um aviso padrão
+      alert(data.erro || 'Erro ao excluir usuário');
+    }
+
+  } catch (error) {
+    // Captura falhas de rede ou erro na conversão do JSON
+    console.error('Erro ao excluir usuário:', error);
+  }
+}
+function setEditMode(id, nome, email) {
+  // Preenche os campos do formulário com os dados recebidos
+  document.getElementById('userId').value = id;
+  document.getElementById('nome').value = nome;
+  document.getElementById('email').value = email;
+
+  // Altera o texto do botão principal para refletir a ação de edição
+  document.getElementById('btnSubmit').innertext = 'Atualizar Usuário';
+
+  // Torna visível o botão de cancelar edição (que normalmente fica oculto no modo de criação)
+  document.getElementById('btnCancel').style.display = 'inline-block';
+}
+function resetForm() {
+  // Limpa os valores visíveis dos campos do formulário (nome, email, etc.)
+  document.getElementById('userForm').reset();
+
+  // Garante que o input oculto (type="hidden") tenha seu ID apagado, pois o .reset() nem sempre o limpa
+  document.getElementById('userId').value = '';
+
+  // Restaura o texto padrão do botão de envio
+  document.getElementById('btnSubmit').textContent = 'Salvar Usuário';
+
+  // Oculta novamente o botão de cancelar edição
+  document.getElementById('btnCancel').style.display = 'none';
+}
+
+function scapeHtml(str){
+  // Garante que valores nulos ou numéricos sejam tratados como string antes do .replace()
+  return str.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g, "&quot;");
+
+}
+function escapeJs(str){
+  return str.replace(/'/g,"\\'");
+}
+     </script>
+
   </body>
 </html>

@@ -128,3 +128,20 @@ td img {
 .btn-delete:hover {
     background-color: #843534;
 }
+@media (max-width: 600px) {
+    .container {
+        padding: 20px 15px;
+    }
+
+    table {
+        font-size: 12px;
+    }
+
+    th, td {
+        padding: 8px 5px;
+    }
+
+    button {
+        padding: 8px 10px;
+    }
+}
